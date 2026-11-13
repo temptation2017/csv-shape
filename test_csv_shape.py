@@ -88,6 +88,21 @@ class SniffAndProfileTest(unittest.TestCase):
         self.assertEqual(hint, ";")
         self.assertTrue(text.startswith("a;b"))
 
+    def test_excel_sep_hint_in_bom_encoded_csv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "excel.csv")
+            with open(path, "wb") as source:
+                source.write("sep=;\r\nid;name\r\n1;alpha\r\n".encode("utf-8-sig"))
+
+            out = io.StringIO()
+            self.assertEqual(cs.run(path, None, None, True, None, True, out, io.StringIO()), 0)
+
+        data = json.loads(out.getvalue())
+        self.assertEqual(data["delimiter"], ";")
+        self.assertEqual(data["delimiter_source"], "sep= hint")
+        self.assertEqual(data["shape"], {"rows": 1, "columns": 2})
+        self.assertEqual([column["name"] for column in data["columns"]], ["id", "name"])
+
     def test_orders_shape(self):
         buf = io.StringIO()
         code = cs.run(
